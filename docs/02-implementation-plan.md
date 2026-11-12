@@ -269,6 +269,8 @@ Build the sections in order. Each section can span several commits. Implement it
 
 ### 9. Submission verification
 
+**Status** · Complete. See the [verification evidence](04-test-map.md#section-9-verification).
+
 **Requirements** · FL-09
 
 **Open decisions** · None.

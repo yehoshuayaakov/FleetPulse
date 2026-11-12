@@ -1,18 +1,18 @@
 # FleetPulse test map
 
-The table lists planned checks. Verification evidence is recorded by section as work lands.
+The table maps each requirement to behavior exercised by Vitest and Chrome. The section notes record the specific cases and results.
 
-| Requirement | Automated cases | Manual evidence |
+| Requirement | Vitest coverage | Chrome verification |
 | --- | --- | --- |
-| FL-01 | Snapshot renders 12 unique markers and matching cards. A marker and card use the same selected ID. Test the fixed center, corners, edge-clamped outliers, and stable scale when another truck moves. | Select a truck with the pointer and keyboard. Confirm the tooltip opens on hover and focus. Check the narrow layout and textual status. |
-| FL-02 | A 30-point batch yields one marker position. Duplicate or old fixes never rewind it. A batch can advance position independently of live fields. A late snapshot cannot replace live data. The stale clock starts on first SSE open. Only normal readings refresh it, including out-of-order normal readings whose positions are rejected. Those readings still update valid sensors. | Stop and restore the stream. Check stale and reconnecting feedback. |
-| FL-03 | A `999` sample retains the previous speed and a later valid sample recovers. Fuel silently holds its last non-zero value through two normal zeros. The third confirms. Invalid fuel, disconnect, and staleness reset the pending count. Truck detail updates mileage only and an obsolete response cannot populate a newly selected card. | Check live gauges, mileage, and a visible fault state using fixtures if needed. |
-| FL-04 | Fake time verifies `503` retry delay, bounded attempts, cancellation, and cached-data retention. | Check the retry action with a controlled fleet failure. |
-| FL-05 | REST and WebSocket route duplicates apply once. A late REST result cannot overwrite a newer version. Reassigning moves the active assignment. Completing or cancelling clears it. The destination is blank while routes load, then shows the assignment or Unassigned. The card action is idle-only for unassigned trucks. Routes can assign an active unassigned truck. Concurrent creates for one truck result in one success and a `409` that preserves the losing draft. Invalid create and reassign submissions show inline field errors and send no request. | Assign from a card, update in Routes, and verify the other tab updates. |
-| FL-06 | A version stale at submit and a status write that races during processing both preserve the draft and refresh route state. One route version produces one observed activity entry. Use distinct truck and route versions to verify the PATCH sends the route version. | Tab A opens a status action. Tab B reassigns. Tab A submits and sees the latest assignment, available actor, and preserved draft. |
-| FL-07 | Hover and focus alone send no viewing update. Expand, switch, collapse, hide, and return report the effective view. Two peers on one truck produce one count of two. Switching or clearing one leaves the other. Null clears the truck while keeping the peer online. A blank name sends no registration. Registration sends the trimmed name and omits a dispatcher ID. Reconnect announces after registration and a delayed leave clears only the old session. | Use an observer plus two dispatcher tabs or browser windows. Open the same truck in both dispatchers and check the card names and marker count. Switch or hide one and verify the other remains. Check the online row, keyboard access to the full viewer list, and the behavior after reconnect. |
-| FL-08 | Blank alerts show an inline error and send no request. REST and broadcast events with the same alert ID are applied once. Failures preserve the draft. | Send an alert to the selected truck and check feedback in both tabs. |
-| FL-09 | Run the complete Vitest suite and the TypeScript/Vite build. | Verify install and startup from a clean checkout, then run the two-tab walkthrough in Chrome. |
+| FL-01 | Fixed projection, bounds, edge clamping, and stable scale when another truck moves. | The mock loads 12 unique markers and cards. Pointer and keyboard select the same truck. Tooltips and narrow layout work. |
+| FL-02 | Batch reduction, timestamp ordering, late snapshots, field isolation, per-truck freshness, and stream lifecycle. | Real markers move. Fixtures cover stale markers, batch advancement, reconnect, and recovery on a normal receipt. |
+| FL-03 | Speed plausibility and recovery, silent zero confirmation and count resets, mileage parsing and truck identity. | Gauges update, sensor feedback matches the held value, and scoped retry or rapid selection leaves the current card consistent. |
+| FL-04 | Retry-After formats, bounded attempts, cancellation, and invalid response handling. | The initial error has a retry. A failed refresh retains the previous fleet. |
+| FL-05 | Route merging, assignment release, read validation, mutation contracts, and action availability. | Create from Fleet or Routes, check truck eligibility, validate create and reassign before writing, and see changes in both sessions. Competing writes to one truck yield a 201 and a 409. |
+| FL-06 | Captured route version in If-Match, typed conflict payloads, validated socket updates, deduplicated activity, and actor selection. | Reassignment races before and during status PATCH. The dialog preserves the action and identifies the actor when available. Retrying requires a fresh review. |
+| FL-07 | Registration, viewing, reconnect, delayed leave, and per-session viewer grouping. | Two dispatchers open the same truck. An observer sees both names and the count. Switching, hiding, collapse, and leaving Fleet update that count. |
+| FL-08 | Alert target and response validation, dispatcher header, no replay, event validation, and bounded deduplication. | Whitespace sends no request. Both tabs see one alert and the sender gets one toast. Rejection and response loss preserve drafts. |
+| FL-09 | Run the complete Vitest suite. | Clean-checkout install, startup, production build, and the Chrome walkthrough. |
 
 ## Section 1 verification
 
@@ -67,6 +67,14 @@ The table lists planned checks. Verification evidence is recorded by section as 
 - **FL-08.** The alert API tests cover the selected truck, dispatcher header, response validation, and no replay after failure. The alert state tests cover deduplication, chronological ordering, and the per-truck limit. The dispatcher socket tests reject malformed alert events and accept valid events after registration.
 - Two Chrome sessions verified an inline whitespace error with no request, Warning severity on a real 201, one recent alert in each session, and a sender-only success toast. A rejection and a lost response preserved the draft. In the lost-response case, the peer still received the mock broadcast and the sender made one write.
 - Chrome verified keyboard operation of the alert disclosure and the dashboard fallback. A controlled render failure showed **Reload dashboard**, and keyboard activation recovered the live fleet after the injected failure was cleared.
+
+## Section 9 verification
+
+- From a fresh local clone with Node 24.18.0 and npm 10.7.0, dependency installation succeeded, the build passed, and all 77 Vitest cases across 14 files passed. The installed lockfile differed only in npm 10’s handling of optional Linux libc metadata. Package versions and integrity values matched. The install audit reported zero vulnerabilities.
+- Starting the clone with npm start loaded the real mock through Vite. In Chrome, the fleet showed 12 live trucks, keyboard selection and tooltips worked, two viewers appeared on one truck and switched independently, and the 390 px Fleet layout had no horizontal overflow.
+- A Fleet-card route assignment appeared in both sessions, including priority and notes in the expanded card. Reassignment produced a real 409 on the stale status edit. The dialog named the other dispatcher, then used the refreshed route version after explicit review. Completion released the truck.
+- Initial route load failure and reconnect refresh failure both offered scoped retry. Reconnect kept the last available route list and blocked route writes until a successful refresh. Chrome also repeated the alert checks, keyboard dialog dismissal, and render fallback recovery.
+- The mock source hash matched the pre-feature copy in the clean checkout. The build reported Zod annotation warnings and a 537.71 kB minified initial chunk.
 
 ## Error and toast checks
 

@@ -87,3 +87,4 @@
 ## Section 9 · Submission review
 
 - Codex compared the finished flows with the assignment brief and test map. The sweep added tests for route reads and malformed route broadcasts, exposed priority and notes in expanded truck cards, and verified that the alert form can load on demand.
+- Codex ran installation, build, tests, and a live Chrome walkthrough from a fresh local clone. The walkthrough verified that a reconnect with a failed route refresh retains the cached list and gates writes until a successful refresh.

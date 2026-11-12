@@ -120,3 +120,4 @@ For future entries, record the date, section, decision or change, reason, and ve
 
 - Keep the first two normal fuel zeros silent, as agreed. The third consecutive zero confirms the reading.
 - The final sweep added route snapshot failure and malformed-payload cases, plus a socket test for accepted and rejected route events. It also added priority and notes to the expanded truck card so dispatchers can review the assignment from Fleet.
+- Git preserves the supplied mock copy byte for byte across checkout line-ending settings. The clean clone passed installation, the build, 77 tests, and the Chrome walkthrough. See [Section 9 verification](04-test-map.md#section-9-verification).
