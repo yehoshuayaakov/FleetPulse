@@ -1,6 +1,6 @@
 # FleetPulse test map
 
-The table maps each requirement to behavior exercised by Vitest and Chrome. The section notes record the specific cases and results.
+The table maps each requirement to behavior exercised by Vitest and Chrome. The section notes record the specific cases and results. The [E2E Sweep Test](05-e2e-sweep-test.md) records the 12 Nov browser run, including race timing and the two defects found there. Those defects were fixed after the sweep. `npm run test:e2e` checks the fixed behavior and is separate from `npm test`.
 
 | Requirement | Vitest coverage | Chrome verification |
 | --- | --- | --- |
@@ -14,22 +14,26 @@ The table maps each requirement to behavior exercised by Vitest and Chrome. The 
 | FL-08 | Alert target and response validation, dispatcher header, no replay, event validation, and bounded deduplication. | Whitespace sends no request. Both tabs see one alert and the sender gets one toast. Rejection and response loss preserve drafts. |
 | FL-09 | Run the complete Vitest suite. | Clean-checkout install, startup, production build, and the Chrome walkthrough. |
 
+## Screen navigation regression
+
+- `e2e/screen-navigation.e2e.ts` checks that the Fleet link and browser Back return to the top after a lower truck is selected. The selected card stays visible in the truck list. The dispatcher stays registered on both screens, and only Fleet shows the truck being viewed.
+
 ## Section 1 verification
 
-- **FL-01** · `src/features/fleet/utils/gridPosition.test.ts` covers center, corners, edge clamping, and a stable projection. In Chrome, the live mock returned 12 distinct markers and cards. Keyboard focus and pointer hover showed tooltips. Keyboard and pointer activation selected the matching truck, and collapsing cleared its marker selection. Selecting a truck below the fold scrolled its card into view. At 390 px, the card list stacked below the grid without horizontal overflow.
+- **FL-01** · `src/screens/fleet/utils/gridPosition.test.ts` covers center, corners, edge clamping, and a stable projection. In Chrome, the live mock returned 12 distinct markers and cards. Keyboard focus and pointer hover showed tooltips. Keyboard and pointer activation selected the matching truck, and collapsing cleared its marker selection. Selecting a truck below the fold scrolled its card into view. At 390 px, the card list stacked below the grid without horizontal overflow.
 - **FL-04** · `src/api/fleet/queries.test.ts` covers both `Retry-After` formats, fallback delay, exhaustion, cancellation, invalid payloads, and non-retriable HTTP errors. Chrome fixtures covered an initial load error, an empty response, a failed refresh with the previous fleet retained, and successful manual retry.
 - `npm run build` and `npm test` passed. The suite contains 12 tests across three files. The build reports non-blocking Rollup annotation warnings from Zod.
 
 ## Section 2 verification
 
-- **FL-02 GPS ordering.** `src/features/fleet/utils/telemetry.test.ts` covers a 30-point batch, duplicate and out-of-order timestamps, independent truck positions, an older REST response arriving after live GPS, and an older batch arriving after REST.
+- **FL-02 GPS ordering.** `src/fleet/telemetry.test.ts` covers a 30-point batch, duplicate and out-of-order timestamps, independent truck positions, an older REST response arriving after live GPS, and an older batch arriving after REST.
 - **FL-02 SSE.** `src/realtime/telemetryStream.test.ts` covers malformed and control messages, valid fixes alongside invalid readings and a speed fault, fractional timestamps, connection states, and cleanup.
 - Chrome showed movement on the real mock stream while retaining 12 markers. Controlled SSE fixtures verified the late snapshot, batch, duplicate and delayed fixes, automatic reconnect, and manual reconnect from a closed stream.
 - `npm run build` and `npm test` passed with 24 tests across five files. The existing Zod annotation warnings remain non-blocking.
 
 ## Section 3 verification
 
-- **FL-02 freshness.** `src/features/fleet/utils/telemetryHealth.test.ts` covers the eight-second boundary, a batch moving a stale marker, an out-of-order normal receipt restoring freshness without rewinding GPS, and late snapshots preserving live values.
+- **FL-02 freshness.** `src/fleet/telemetryHealth.test.ts` covers the eight-second boundary, a batch moving a stale marker, an out-of-order normal receipt restoring freshness without rewinding GPS, and late snapshots preserving live values.
 - **FL-03 health.** Tests cover speeds of 0 and 250, rejected or malformed speeds including 999, repeated faults preserving the last valid timestamp, first-sample unavailability, transient and sustained fuel zeros, disconnect and stale-gap resets, and malformed field isolation.
 - Chrome verified live sensor changes on the real mock. A controlled clock and SSE fixture verified independent truck freshness, stale marker dimming and age, retained readings during faults, batch position recovery, and reconnect without prematurely clearing staleness.
 - `npm run build` and `npm test` passed with 41 tests across six files. The existing Zod annotation warnings remain non-blocking.
@@ -43,13 +47,13 @@ The table maps each requirement to behavior exercised by Vitest and Chrome. The 
 
 ## Section 5 verification
 
-- **FL-07 state and transport.** `src/features/presence/utils/presenceState.test.ts` covers multiple viewers, switching and clearing independently, unknown IDs, and a delayed or duplicate leave. `src/realtime/dispatcherSocket.test.ts` covers name-only registration, selection after acknowledgement, malformed messages, reconnect identity and reannouncement, capped backoff, handshake timeout, and timer cleanup.
+- **FL-07 state and transport.** `src/components/dispatcher-presence/presenceState.test.ts` covers multiple viewers, switching and clearing independently, unknown IDs, and a delayed or duplicate leave. `src/realtime/dispatcherSocket.test.ts` covers name-only registration, selection after acknowledgement, malformed messages, reconnect identity and reannouncement, capped backoff, handshake timeout, and timer cleanup.
 - Four isolated Chrome sessions using the actual mock verified required and trimmed names, the online row, two viewers and matching marker count, a keyboard-openable full list for three viewers, tooltip-only hover and focus, independent switching, visibility changes, collapse, and reconnect. A delayed-leave fixture sent to the observer left the new session and other viewers intact. The narrow layout had no horizontal overflow.
 - The build and all 55 tests passed. Verify navigation away from Fleet again when the Routes view lands.
 
 ## Section 6 verification
 
-- **FL-05/06 state and API.** `src/features/routes/utils/routeState.test.ts` covers version ordering, duplicate REST/WebSocket results, late snapshots, and released assignments. `src/api/routes/mutations.test.ts` covers the dispatcher header, validated creation result, and typed 409 metadata.
+- **FL-05/06 state and API.** `src/screens/routes/utils/routeState.test.ts` covers version ordering, duplicate REST/WebSocket results, late snapshots, and released assignments. `src/api/routes/mutations.test.ts` covers the dispatcher header, validated creation result, and typed 409 metadata.
 - Two Chrome sessions with the real mock verified direct `/routes` access, browser back and forward, the same dispatcher session across navigation, and clearing and reannouncing Fleet viewing.
 - Chrome verified creation from an idle Fleet card and for an active unassigned truck from Routes, validation blocking the request, cross-tab updates, one audit entry per version, and initiating-tab toasts.
 - Simultaneous writes produced one 201 and one 409. The losing form showed the winner's assignment and preserved its draft. A separate lost-response fixture saved a route on the server, preserved the unconfirmed draft, and sent no replay. Reconnect loaded the route snapshot again.
@@ -57,7 +61,7 @@ The table maps each requirement to behavior exercised by Vitest and Chrome. The 
 
 ## Section 7 verification
 
-- **FL-05/06.** `src/features/routes/utils/routeActions.test.ts` checks action availability and actor selection. `src/api/routes/mutations.test.ts` verifies the route version in `If-Match`, a status conflict with only the current version, and the occupied-target response from reassignment.
+- **FL-05/06.** `src/screens/routes/utils/routeActions.test.ts` checks action availability and actor selection. `src/api/routes/mutations.test.ts` verifies the route version in `If-Match`, a status conflict with only the current version, and the occupied-target response from reassignment.
 - Two Chrome sessions against the mock verified a stale PATCH after reassignment, display of the winning truck and dispatcher, preservation of the requested action, and a second explicit submit with the reviewed version. Completion and cancellation released the truck in Fleet and updated both route views.
 - A controlled concurrent request produced the mock's second 409 branch while PATCH was processing. The dialog identified the reassigning dispatcher from the matching live event. A separate occupied-target PUT returned 409, retained the dialog, and named the competing assignment.
 - The build and all 68 tests passed. The existing Vite size and Zod annotation warnings remain non-blocking.
@@ -95,3 +99,14 @@ The table maps each requirement to behavior exercised by Vitest and Chrome. The 
 ## Mock quirks covered
 
 The eight server quirks map to GPS batch and out-of-order fixes (FL-02), speed and fuel glitches (FL-03), fleet overload (FL-04), stale route versions and mid-PATCH reassignment (FL-06), and ghost presence (FL-07). The mock sends normal readings for all trucks, with batch fixes at least two seconds older than the normal timestamp for the same tick. Use the single-truck fixture to verify signal loss and an advancing batch. Retain the real two-tab walkthrough as integration evidence.
+
+## Section 10 verification
+
+- `src/fleet/fleetStore.test.ts` verifies stable catalog identity across GPS, speed, and freshness updates, catalog changes when operational status changes, late response reconciliation, refresh failure, and stream, timer, and request cleanup across restart.
+- In Chromium, controlled GPS and speed updates and a freshness tick with Routes and the assignment dialog open produced zero App renders and zero React Profiler commits. A temporary full-fleet subscription around the same dashboard produced six App renders and six commits under the same inputs. One SSE connection remained active across navigation. A maintenance update disabled the truck in the route picker and reached the grid and card filters. A two-tab route creation then updated the assignment filter on both Fleet surfaces and disabled that truck in the route picker.
+- `e2e/fleet-live-state.e2e.ts` injects a controlled status change while Routes is open, verifies the picker updates, then verifies both Fleet surfaces react to the status filter. Navigation keeps one active SSE connection and opens no new one.
+- The production build passed. All 89 Vitest tests and five Playwright tests passed. TypeScript also checks the Playwright tests and configuration.
+
+## Dispatcher presence regression
+
+- `e2e/dispatcher-presence.e2e.ts` verifies that two independently registered browser sessions see each other's display names immediately, including the earlier dispatcher who has no truck open. It uses the real mock WebSocket to verify that opening a truck in a visible Fleet tab adds the viewing label to the peer tag, card, and marker. Hiding the tab clears the label, returning restores it, and collapsing the card clears it again.

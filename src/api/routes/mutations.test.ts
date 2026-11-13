@@ -52,10 +52,22 @@ it('sends a PUT with the target truck and surfaces occupied-target conflicts', a
   }, { status: 409 }));
   vi.stubGlobal('fetch', fetchMock);
 
-  await expect(reassignRoute('route_1', 'truck_2', 'dispatcher_a')).rejects.toHaveProperty('name', 'ReassignmentConflict');
+  await expect(reassignRoute('route_1', 'truck_2', 2, 'dispatcher_a')).rejects.toHaveProperty('name', 'ReassignmentConflict');
   expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/routes/route_1/reassign', expect.objectContaining({
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Dispatcher-Id': 'dispatcher_a' },
+    headers: { 'Content-Type': 'application/json', 'X-Dispatcher-Id': 'dispatcher_a', 'If-Match': '2' },
     body: JSON.stringify({ newTruckId: 'truck_2' }),
   }));
+});
+
+it('reports a stale reassignment as a route version conflict', async () => {
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+    error: 'Route is no longer active', currentVersion: 3,
+  }, { status: 409 }));
+  vi.stubGlobal('fetch', fetchMock);
+
+  await expect(reassignRoute('route_1', 'truck_2', 2, 'dispatcher_a')).rejects.toMatchObject({
+    name: 'RouteVersionConflict', currentVersion: 3,
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });

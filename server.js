@@ -346,6 +346,19 @@ app.put('/api/routes/:routeId/reassign', (req, res) => {
   const route = routes[req.params.routeId];
   if (!route) return res.status(404).json({ error: 'Route not found' });
 
+  const ifMatch = req.headers['if-match'];
+  const reviewedVersion = parseInt(ifMatch, 10);
+  if (route.status === 'completed' || route.status === 'cancelled' || reviewedVersion !== route._version) {
+    return res.status(409).json({
+      error: route.status === 'completed' || route.status === 'cancelled'
+        ? 'Route is no longer active'
+        : 'Route was modified by another dispatcher',
+      currentVersion: route._version,
+      yourVersion: reviewedVersion,
+      lastModifiedBy: route.lastModifiedBy || route.reassignedBy || route.assignedBy
+    });
+  }
+
   const { newTruckId } = req.body;
   const newTruck = trucks[newTruckId];
   if (!newTruck) return res.status(404).json({ error: 'Target truck not found' });
@@ -459,6 +472,7 @@ app.get('/api/telemetry/history/:truckId', (req, res) => {
 // ============ WEBSOCKET ============
 wss.on('connection', (ws) => {
   let dispatcherId = null;
+  let dispatcherName = null;
 
   ws.on('message', (data) => {
     try {
@@ -466,9 +480,10 @@ wss.on('connection', (ws) => {
 
       if (msg.type === 'register_dispatcher') {
         dispatcherId = msg.dispatcherId || `dispatcher_${crypto.randomUUID().slice(0, 8)}`;
+        dispatcherName = msg.name || 'Anonymous';
         dispatchers[dispatcherId] = {
           id: dispatcherId,
-          name: msg.name || 'Anonymous',
+          name: dispatcherName,
           connectedAt: Date.now(),
           ws
         };
@@ -476,7 +491,7 @@ wss.on('connection', (ws) => {
         broadcastWS({
           type: 'dispatcher_joined',
           dispatcherId,
-          name: msg.name || 'Anonymous',
+          name: dispatcherName,
           timestamp: Date.now(),
           activeDispatchers: Object.keys(dispatchers).length
         }, ws);
@@ -487,10 +502,11 @@ wss.on('connection', (ws) => {
       }
 
       // Dispatcher "looking at" a truck (cursor presence)
-      if (msg.type === 'viewing_truck') {
+      if (msg.type === 'viewing_truck' && dispatcherId) {
         broadcastWS({
           type: 'dispatcher_viewing',
           dispatcherId,
+          name: dispatcherName,
           truckId: msg.truckId,
           timestamp: Date.now()
         }, ws);

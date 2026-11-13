@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { routeSchema } from '../../globalSchemas/routeSchema';
+import { routeSchema } from '../../sharedSchemas/routeSchema';
 
 export const routesSnapshotSchema = z.object({ routes: z.array(routeSchema) });
 export const routeVersionConflictSchema = z.object({

@@ -1,4 +1,4 @@
-import { routeSchema, type FleetRoute } from '../../globalSchemas/routeSchema';
+import { routeSchema, type FleetRoute } from '../../sharedSchemas/routeSchema';
 import { HttpError, requestJson } from '../http';
 import { assignmentConflictSchema, routeVersionConflictSchema } from './schemas';
 
@@ -77,17 +77,27 @@ export async function changeRouteStatus(
   }
 }
 
-export async function reassignRoute(routeId: string, newTruckId: string, dispatcherId: string) {
+export async function reassignRoute(routeId: string, newTruckId: string, version: number, dispatcherId: string) {
   try {
     const response = await requestJson(`/api/routes/${encodeURIComponent(routeId)}/reassign`, {
       method: 'PUT',
       signal: AbortSignal.timeout(10_000),
-      headers: { 'Content-Type': 'application/json', 'X-Dispatcher-Id': dispatcherId },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dispatcher-Id': dispatcherId,
+        'If-Match': String(version),
+      },
       body: JSON.stringify({ newTruckId }),
     });
     return routeSchema.parse(response);
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) throw new ReassignmentConflict();
+    if (error instanceof HttpError && error.status === 409) {
+      const details = routeVersionConflictSchema.safeParse(error.body);
+      if (details.success && details.data.currentVersion !== undefined) {
+        throw new RouteVersionConflict(details.data.currentVersion);
+      }
+      throw new ReassignmentConflict();
+    }
     throw error;
   }
 }

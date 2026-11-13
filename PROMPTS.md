@@ -1,5 +1,7 @@
 # AI usage journal
 
+The Cursor session is recorded in [CURSOR-PROMPTS.md](CURSOR-PROMPTS.md).
+
 ## Assignment review and planning
 
 - Asked Codex to summarize the assignment, identify components, and propose an implementation order.
@@ -88,3 +90,24 @@
 
 - Codex compared the finished flows with the assignment brief and test map. The sweep added tests for route reads and malformed route broadcasts, exposed priority and notes in expanded truck cards, and verified that the alert form can load on demand.
 - Codex ran installation, build, tests, and a live Chrome walkthrough from a fresh local clone. The walkthrough verified that a reconnect with a failed route refresh retains the cached list and gates writes until a successful refresh.
+
+## Browser sweep and implementation review
+
+- **Prompt:** “Do a full e2e evaluation” of route creation, changes, conflicts, and race conditions in two dispatcher sessions. Codex ran the sweep against an isolated copy of the mock and recorded the outcomes in the [E2E sweep](docs/05-e2e-sweep-test.md). Follow-up Playwright tests cover stale route actions and competing reassignments.
+- **Prompt:** “I prefer features to be screens.” The Fleet and Routes modules moved under `src/screens/`, with shared dispatcher presence under `src/components/`. A navigation regression checks the return scroll position, selected truck, and dispatcher session.
+- **Prompt:** “Review the entire project.” The [Codex review](docs/codex-review-2026-11-12-1213.md) reproduced reset races and flagged the assignment's request to include the mock server unchanged. The API typing review used malformed responses to verify gaps in route write confirmation, conflict classification, and request types.
+
+## Shared fleet state and filtering
+
+- **Prompt:** Investigate a shared store as Fleet and Routes gain more consumers of truck data. Codex initially proposed Zustand. The user pointed out that React already supplies `useSyncExternalStore` and that the work lay in connection cleanup and stable snapshots. The [implementation plan](docs/02-implementation-plan.md#10-shared-fleet-state) adopted React's built-in hook.
+- Codex moved the fleet lifecycle into one store per dashboard. Fleet reads live telemetry, and Routes uses a catalog that changes when truck IDs, names, or operational statuses change. The Fleet filter stays local to the screen, and the grid and cards share its result.
+- **Prompt:** Verify the tests after the refactor and decide what coverage to add or remove. Codex kept the transport and merge tests, added store lifecycle tests, and added a browser case proving that a live maintenance update reaches the route picker and the Fleet filter across navigation. A controlled Chrome profile recorded zero App renders for GPS, speed, and freshness updates while the assignment dialog was open. See the [test map](docs/04-test-map.md#section-10-verification).
+
+## Dispatcher names and viewing status
+
+- **Prompt:** Explain why a second dispatcher sees a session ID in place of the first dispatcher's name. Codex traced the ID to a viewing announcement that arrived after the first dispatcher had joined. The mock now includes the registered name in viewing events so existing sessions can identify themselves when a new dispatcher joins.
+- **Prompt:** Check why the other dispatcher's truck is absent from the online bar. The browser regression verifies the peer tag, card, and marker. Opening details in a visible Fleet tab announces the truck. Hiding the tab clears the view, returning restores it, and collapsing the card clears it again. This explains why two visible windows are useful for a manual check. See the [presence verification](docs/04-test-map.md#dispatcher-presence-regression).
+
+## Observability exploration
+
+- The user asked what observability would help while working on filtering. Codex proposed a local developer panel for telemetry rate, stale trucks, SSE and WebSocket reconnects, fleet retries, and route conflicts. This was a design exploration.

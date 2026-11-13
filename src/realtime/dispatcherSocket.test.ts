@@ -157,6 +157,20 @@ describe('dispatcher socket', () => {
     client.close();
   });
 
+  it('clears the dashboard when the mock broadcasts a fleet reset', () => {
+    const onFleetReset = vi.fn();
+    const onRouteEvent = vi.fn();
+    const client = connectDispatcher('Alice', { onConnection: vi.fn(), onPeerEvent: vi.fn(), onRouteEvent, onFleetReset });
+    const socket = FakeSocket.sockets[0];
+    socket.open();
+    socket.receive({ type: 'registered', dispatcherId: 'dispatcher_a' });
+    socket.receive({ type: 'fleet_reset', timestamp: 3000 });
+
+    expect(onFleetReset).toHaveBeenCalledOnce();
+    expect(onRouteEvent).not.toHaveBeenCalled();
+    client.close();
+  });
+
   it('closes a socket that never acknowledges registration', () => {
     const onConnection = vi.fn();
     const client = connectDispatcher('Alice', { onConnection, onPeerEvent: vi.fn() });

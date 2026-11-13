@@ -1,5 +1,6 @@
+import { fleetSnapshotSchema, type FleetSnapshot } from '../../sharedSchemas/fleetSchema';
 import { HttpError, requestJson } from '../http';
-import { fleetSnapshotSchema, truckMileageSchema, type FleetSnapshot } from './schemas';
+import { truckMileageSchema } from './schemas';
 
 const MAX_RETRIES = 2;
 const DEFAULT_RETRY_DELAY = 1000;

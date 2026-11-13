@@ -12,7 +12,7 @@ Fleet shows a Tel Aviv coordinate grid and selectable truck cards. Routes shows 
 
 - Build interactive controls and gauges with React Aria Components. Use semantic HTML for layout and content, with Tailwind classes and shared theme tokens across both views.
 - Reusable UI lives in `src/components/`. Features own their UI, validation schemas, and domain logic. Dedicated REST and real-time modules own server calls.
-- Promote contracts genuinely shared by sibling areas to the nearest common layer and have both areas import from there. App-wide shared schemas live in `src/globalSchemas/`. Resource payloads and feature-specific form schemas stay with their owners.
+- Promote contracts genuinely shared by sibling areas to the nearest common layer and have both areas import from there. App-wide shared schemas live in `src/sharedSchemas/`. Resource payloads and feature-specific form schemas stay with their owners.
 - Validate forms with Zod on submit and show errors alongside the relevant RAC fields. Keep entered values through validation, network errors, and assignment conflicts. An invalid submission sends no request.
 
 ## Requirements and acceptance criteria
@@ -32,9 +32,9 @@ Fleet shows a Tel Aviv coordinate grid and selectable truck cards. Routes shows 
 ## Fleet layout
 
 - Use a fixed Tel Aviv window centered at `32.0853, 34.7818`, extending 0.05° in each direction. Latitude spans `32.0353–32.1353` and longitude spans `34.7318–34.8318`. North is up and east is right. Keep the scale fixed as trucks move. Clamp a valid out-of-window fix to the nearest edge for display and retain its original coordinates.
-- Place the coordinate grid beside a column of truck cards. On narrow screens, stack the grid above the cards. Put **Online dispatchers** directly above the grid and show the truck each known dispatcher has open when available.
-- Keep a card visible for every truck. The collapsed card shows the name, operational status, speed, fuel, and engine temperature, with signal, sensor, and viewer labels as applicable. Show the latest accepted values. Leave the card's route destination blank until the route list has loaded. Then show destination and status, or **Unassigned** if the list confirms there is no route. Show the RAC **Assign route** button for idle, unassigned trucks. The Routes form also offers active unassigned trucks. Maintenance trucks are unavailable for assignment. Expanding the card adds gauges, mileage, assigned route priority and notes, and alert actions.
-- Keep marker and card selection synchronized. The grid communicates location and offers a marker tooltip. The cards expose telemetry at a glance without requiring each truck to be opened.
+- Make the coordinate grid the main panel, with a narrower column of truck cards alongside it. On narrow screens, stack the grid above the cards. Put **Online dispatchers** directly above the grid and show the truck each known dispatcher has open when available.
+- Keep a card visible for every truck. The collapsed card shows the name, operational status, speed, fuel, and engine temperature, with signal, sensor, and viewer labels as applicable. Show the latest accepted values. Leave the card's route destination blank until the route list has loaded. Then show the destination with its route status chip, or an **Unassigned** chip if the list confirms there is no route. Use **Show details** and **Hide details** to open and close the card. An unassigned truck that is not in maintenance shows a short assignment hint while collapsed and the RAC **Assign route** button when expanded. **New route** on Routes uses the same form. Its truck selector lists every truck with its operational status and disables maintenance trucks and trucks that already have a route. Expanding the card adds gauges, mileage, assigned route priority and notes, and alert actions.
+- Keep marker and card selection synchronized. Color the marker and the numbered card badge by operational status: solid green when active, light gray with a dark border when idle, and amber in maintenance. The number identifies the truck. Show the status in the tooltip and card. The grid communicates location and offers a marker tooltip. The cards expose telemetry at a glance without requiring each truck to be opened.
 
 ## Telemetry recovery
 
@@ -68,7 +68,7 @@ Toasts are dismissible and supplement persistent feedback. Invalid client-side s
 
 ## Viewing presence in Fleet
 
-Place an **Online dispatchers** row above the Fleet grid. Include the local registered session as **You** and known peer sessions by name, with a short session ID as a fallback when a peer was discovered through a viewing event. If names match, use session IDs to distinguish them.
+Place an **Online dispatchers** row above the Fleet grid. Give each session its own tag with the dispatcher name and the truck they have open, when available. Mark the local session as **You**. Viewing events carry the display name from registration, so a late joiner can name peers it discovers. Use a short session ID as a fallback for a viewing event without a name. If names match, use session IDs to distinguish them.
 
 Registration requires a trimmed, nonblank display name. Send the name and let the mock mint a fresh dispatcher ID for each connection. A dispatcher is viewing a truck while its detail card is expanded in their visible Fleet view. Activating either the marker or card opens it. Tooltip hover and focus leave viewing state unchanged. Viewing reports the open detail panel and does not reserve the truck or lock its route.
 
@@ -84,8 +84,8 @@ Show other viewers on each card as **Viewed by Alice** or **Viewed by Alice and 
 
 ## Mock contract limits
 
-- The server checks the truck's current assignment when creating a route. Two attempts to assign the same truck produce one success and one `409`. The mock can also start with active trucks that have no route. A new route starts at `_version: 1`. A successful status edit or reassignment increments its version. A status PATCH checks the route version supplied in `If-Match` twice, including after a processing delay. The truck version from the fleet payload is a separate counter updated by truck simulation. Reassignment checks target availability and has no source-route version check.
-- Route audit history is limited to available route metadata and events observed in the current session. Presence begins with observed join and viewing events because there is no initial roster.
+- The server checks the truck's current assignment when creating a route. Two attempts to assign the same truck produce one success and one `409`. The mock can also start with active trucks that have no route. A new route starts at `_version: 1`. A successful status edit or reassignment increments its version. A status PATCH checks the route version supplied in `If-Match` twice, including after a processing delay. The truck version from the fleet payload is a separate counter updated by truck simulation. Reassignment requires the reviewed route version in `If-Match`, rejects a completed or cancelled source route, and checks that the target truck is available.
+- Route audit history is limited to available route metadata and events observed in the current session. Presence discovers existing sessions through their named viewing announcements when a dispatcher joins.
 - The mock accepts and broadcasts alerts. Recent alerts contain up to 20 per truck seen by the current dashboard. The mock exposes no alert history or driver acknowledgement flow.
 - Normal telemetry ticks include every truck. Batch fixes are at least two seconds older than the same tick's normal timestamp, so an advancing batch on a stale truck is best demonstrated in a fixture. Read only mileage from the selected truck detail response. Its location and sensors leave live values unchanged.
 - Circuit breaking after three consecutive fleet failures, an observability panel, geofencing, side-by-side conflict resolution, keyboard shortcuts, and filtering are optional extensions. The required retry and conflict flows ship first.

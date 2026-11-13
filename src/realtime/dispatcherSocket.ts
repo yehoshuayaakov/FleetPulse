@@ -1,6 +1,6 @@
-import { dispatcherEventSchema, type DispatcherPeerEvent } from '../globalSchemas/dispatcherSchemas';
-import { routeEventSchema, type RouteEvent } from '../globalSchemas/routeSchema';
-import { truckAlertEventSchema, type TruckAlert } from '../globalSchemas/truckAlertSchema';
+import { dispatcherEventSchema, fleetResetSchema, type DispatcherPeerEvent } from '../sharedSchemas/dispatcherSchemas';
+import { routeEventSchema, type RouteEvent } from '../sharedSchemas/routeSchema';
+import { truckAlertEventSchema, type TruckAlert } from '../sharedSchemas/truckAlertSchema';
 
 const INITIAL_RETRY_MS = 1000;
 const MAX_RETRY_MS = 30_000;
@@ -15,6 +15,7 @@ interface DispatcherHandlers {
   onPeerEvent: (event: DispatcherPeerEvent) => void;
   onRouteEvent?: (event: RouteEvent) => void;
   onAlert?: (alert: TruckAlert) => void;
+  onFleetReset?: () => void;
 }
 
 function parseEvent(data: unknown) {
@@ -23,6 +24,8 @@ function parseEvent(data: unknown) {
     const payload: unknown = JSON.parse(data);
     const dispatcher = dispatcherEventSchema.safeParse(payload);
     if (dispatcher.success) return dispatcher.data;
+    const reset = fleetResetSchema.safeParse(payload);
+    if (reset.success) return reset.data;
     const route = routeEventSchema.safeParse(payload);
     if (route.success) return route.data;
     const alert = truckAlertEventSchema.safeParse(payload);
@@ -32,7 +35,7 @@ function parseEvent(data: unknown) {
   }
 }
 
-export function connectDispatcher(name: string, { onConnection, onPeerEvent, onRouteEvent, onAlert }: DispatcherHandlers) {
+export function connectDispatcher(name: string, { onConnection, onPeerEvent, onRouteEvent, onAlert, onFleetReset }: DispatcherHandlers) {
   const url = new URL('/ws', window.location.href);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   let socket: WebSocket | undefined;
@@ -67,6 +70,10 @@ export function connectDispatcher(name: string, { onConnection, onPeerEvent, onR
         retryDelay = INITIAL_RETRY_MS;
         onConnection({ status: 'connected', dispatcherId });
         announceViewing();
+        return;
+      }
+      if (event.type === 'fleet_reset') {
+        onFleetReset?.();
         return;
       }
       if (event.type === 'truck_alert') {

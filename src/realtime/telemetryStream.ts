@@ -3,7 +3,7 @@ import {
   normalReadingSchema,
   positionFixSchema,
   type TelemetryUpdate,
-} from '../globalSchemas/telemetrySchemas';
+} from '../sharedSchemas/telemetrySchemas';
 
 const envelopeSchema = z.object({
   type: z.enum(['telemetry', 'gps_batch']),

@@ -17,7 +17,7 @@ None.
 | 3 · Fuel | Silently hold the accepted value through two consecutive normal zeros and display zero on the third. A positive REST snapshot clears the pending count. | See Silent fuel zero confirmation below. |
 | 4 · Vehicle detail | Extract mileage only from the truck detail response. | Its location and sensor values can race with live updates. |
 | 5 · Presence | Require a nonblank display name and let the server issue the session ID each time. | A delayed leave can remove a reconnected session that reuses its ID. |
-| 6 · Assignment | Leave the card destination blank until routes load. The card action is idle-only. Routes can also assign active unassigned trucks. | Most trucks start active without a route. |
+| 6 · Assignment | Leave the card destination blank until routes load. Fleet and Routes both assign any truck that is unassigned and not in maintenance. | Most trucks start active without a route. |
 | 7 · Route edits | Send the route version in `If-Match`. | The fleet truck version is updated by telemetry simulation. |
 
 For future entries, record the date, section, decision or change, reason, and verification status. Move resolved open decisions into the record.
@@ -121,3 +121,56 @@ For future entries, record the date, section, decision or change, reason, and ve
 - Keep the first two normal fuel zeros silent, as agreed. The third consecutive zero confirms the reading.
 - The final sweep added route snapshot failure and malformed-payload cases, plus a socket test for accepted and rejected route events. It also added priority and notes to the expanded truck card so dispatchers can review the assignment from Fleet.
 - Git preserves the supplied mock copy byte for byte across checkout line-ending settings. The clean clone passed installation, the build, 77 tests, and the Chrome walkthrough. See [Section 9 verification](04-test-map.md#section-9-verification).
+
+### 2026-11-12 · Fleet layout and dispatcher validation
+
+- Give the coordinate grid the wider desktop column and let it fill that space. Keep the truck list alongside it on desktop and below it on phones.
+- Match each truck's numbered marker and card badge with a stable color. A separate marker dot and the tooltip and card labels convey operational status.
+- Align **Online dispatchers** with the display-name input and join button when they share a row. Reserve one line below the input for the validation message. Chrome verified that the presence row and map stay in place when the error appears or clears at 1366, 390, and 320 px widths. At 1366 × 768, the plot grew from 246 × 246 to 730 × 384 and fit in the visible area.
+- The running mock returned an empty route list. The README describes creating the first route and the mock's in-memory storage.
+
+### 2026-11-12 · Truck card disclosure
+
+- Label the card trigger **Show details** or **Hide details**. Put the assignment hint on collapsed cards for unassigned trucks that are not in maintenance, and the **Assign route** button in their expanded details.
+- Chrome verified keyboard expansion, collapse, and the hint at desktop and 320 px widths. The assignment button opened the shared form with the selected truck prefilled.
+
+### 2026-11-12 · Marker status and truck colors
+
+- Use the status color for the marker fill. Keep the white border and use the truck's card badge color for the outer ring. Selection and keyboard focus have their own outline.
+- Chrome verified the fill, border, and ring on all 12 markers and checked the selection and focus outlines. The production build passed.
+
+### 2026-11-12 · Status-only markers
+
+- Use 28 px numbered circles on the map. The marker and numbered card badge use the same operational status colors: green for active, light gray with a dark border for idle, and amber for maintenance. Selection and keyboard focus use the accent outline.
+
+### 2026-11-12 · Sweep defect checks
+
+- `npm run test:e2e` covers the two sweep defects with two browser sessions on a separate mock. `npm test` remains Vitest.
+- A reassignment PUT now requires the reviewed route version and rejects a completed or cancelled route, so a late reassignment cannot attach a cancelled route to the target truck. This is a deliberate change to the mock's reassignment handler.
+- An open tab handles `fleet_reset` by replacing its route list, clearing peer presence and alerts, and reloading the fleet snapshot.
+
+### 2026-11-12 · Dispatcher tags
+
+- Give each online session a separate bordered tag. Mark the local session as **You** and use **Viewing** before the truck name inside that dispatcher's tag.
+- Chrome verified three separate tags and independent viewing updates at desktop and 320 px widths.
+
+### 2026-11-13 · Shared schemas
+
+- Rename `src/globalSchemas` to `src/sharedSchemas`. A schema lives there when two areas share the contract.
+- Move the truck record and fleet snapshot to `src/sharedSchemas/fleetSchema.ts`. The fleet API and the telemetry merge both use them. Mileage stays in `src/api/fleet/schemas.ts`.
+
+### 2026-11-12 · Screen layout and navigation scroll
+
+- Group Fleet and Routes under `src/screens/`. Both screens render the shared dispatcher presence component. The app shell owns the live connection across screen changes.
+- Start each screen at the top on navigation and browser Back. Scroll the selected truck into view inside the truck list so it does not move the page.
+- The Chrome regression reproduced the Fleet heading disappearing before the fix. It passed after the change, including the Fleet link, browser Back, and dispatcher session continuity.
+
+## Shared fleet state
+
+- Place the store, GPS and sensor merge rules, and their tests under `src/fleet/`. Mount the store once per dashboard and subscribe with React's `useSyncExternalStore`.
+- Fleet reads the live view. App uses the stable catalog of truck IDs, names, and operational statuses for route choices and dispatcher labels. Keep filter state in Fleet and the selected truck ID in App for navigation and presence.
+- Keep a single SSE connection, refresh request, and freshness timer in the store lifecycle. Abort superseded requests and ignore callbacks from replaced connections. The provider starts and stops the lifecycle through its effect.
+
+## Dispatcher names for late joiners
+
+The mock includes the registered display name in each viewing event. Existing tabs reannounce their current view when another dispatcher joins, including when no truck is open. The joining tab uses the name on that event, and an older mock that omits the name can still supply the session ID and view. The name comes from the sender's registration.

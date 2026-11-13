@@ -1,4 +1,4 @@
-import { truckAlertSchema } from '../../globalSchemas/truckAlertSchema';
+import { truckAlertSchema } from '../../sharedSchemas/truckAlertSchema';
 import { requestJson } from '../http';
 
 export async function sendTruckAlert(
